@@ -6,11 +6,47 @@ on:
     paths: ['lib/**']
 
 jobs:
-  sync:
-    uses: agent-sh/.github/.github/workflows/sync-core.yml@main
-    with:
-      source-repo: agent-sh/agent-core
-      target-repos: '["agentsys"]'
-      lib-path: lib
-    secrets:
-      SYNC_TOKEN: ${{ secrets.SYNC_TOKEN }}
+  sync-agentsys:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout agent-core
+        uses: actions/checkout@v4
+        with:
+          path: source
+
+      - name: Checkout agentsys
+        uses: actions/checkout@v4
+        with:
+          repository: agent-sh/agentsys
+          token: ${{ secrets.SYNC_TOKEN }}
+          path: target
+
+      - name: Sync lib
+        run: |
+          rm -rf target/lib/
+          cp -r source/lib/ target/lib/
+
+      - name: Check for changes
+        id: diff
+        working-directory: target
+        run: |
+          git diff --quiet && echo "changed=false" >> $GITHUB_OUTPUT || echo "changed=true" >> $GITHUB_OUTPUT
+
+      - name: Create PR
+        if: steps.diff.outputs.changed == 'true'
+        working-directory: target
+        env:
+          GH_TOKEN: ${{ secrets.SYNC_TOKEN }}
+        run: |
+          BRANCH="chore/sync-core-$(date +%Y%m%d-%H%M%S)"
+          git config user.name "agent-core-bot"
+          git config user.email "noreply@agent-sh.github.io"
+          git checkout -b "$BRANCH"
+          git add lib/
+          git commit -m "chore: sync core lib from agent-core"
+          git push origin "$BRANCH"
+          gh pr create \
+            --repo agent-sh/agentsys \
+            --title "chore: sync core lib from agent-core" \
+            --body "Automated sync of lib/ from [agent-core](https://github.com/agent-sh/agent-core)." \
+            --head "$BRANCH"
