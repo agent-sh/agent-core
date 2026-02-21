@@ -1,0 +1,16 @@
+name: Sync to consumers
+
+on:
+  push:
+    branches: [main]
+    paths: ['lib/**']
+
+jobs:
+  sync:
+    uses: agent-sh/.github/.github/workflows/sync-core.yml@main
+    with:
+      source-repo: agent-sh/agent-core
+      target-repos: '["agentsys"]'
+      lib-path: lib
+    secrets:
+      SYNC_TOKEN: ${{ secrets.SYNC_TOKEN }}
