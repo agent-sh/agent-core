@@ -6,18 +6,21 @@ on:
     paths: ['lib/**']
 
 jobs:
-  sync-agentsys:
+  sync:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        repo: [agentsys, next-task, ship, enhance, deslop, learn, consult, debate, drift-detect, repo-map, sync-docs, audit-project, perf]
     steps:
       - name: Checkout agent-core
         uses: actions/checkout@v4
         with:
           path: source
 
-      - name: Checkout agentsys
+      - name: Checkout target
         uses: actions/checkout@v4
         with:
-          repository: agent-sh/agentsys
+          repository: agent-sh/${{ matrix.repo }}
           token: ${{ secrets.SYNC_TOKEN }}
           path: target
 
@@ -46,7 +49,7 @@ jobs:
           git commit -m "chore: sync core lib from agent-core"
           git push origin "$BRANCH"
           gh pr create \
-            --repo agent-sh/agentsys \
+            --repo agent-sh/${{ matrix.repo }} \
             --title "chore: sync core lib from agent-core" \
             --body "Automated sync of lib/ from [agent-core](https://github.com/agent-sh/agent-core)." \
             --head "$BRANCH"
