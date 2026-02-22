@@ -3,14 +3,18 @@ name: Sync to consumers
 on:
   push:
     branches: [main]
-    paths: ['lib/**']
+    paths: ['lib/**', 'templates/**', 'scripts/generate-claudemd.js']
+
+permissions:
+  contents: read
 
 jobs:
   sync:
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
-        repo: [agentsys, next-task, ship, enhance, deslop, learn, consult, debate, drift-detect, repo-map, sync-docs, audit-project, perf]
+        repo: [agentsys, next-task, ship, enhance, deslop, learn, consult, debate, drift-detect, repo-map, sync-docs, audit-project, perf, web-ctl]
     steps:
       - name: Checkout agent-core
         uses: actions/checkout@v4
@@ -29,27 +33,37 @@ jobs:
           rm -rf target/lib/
           cp -r source/lib/ target/lib/
 
+      - name: Generate CLAUDE.md
+        run: node source/scripts/generate-claudemd.js --target target --template source/templates/CLAUDE.md.tmpl
+
       - name: Check for changes
         id: diff
         working-directory: target
         run: |
-          git diff --quiet && echo "changed=false" >> $GITHUB_OUTPUT || echo "changed=true" >> $GITHUB_OUTPUT
+          if [ -n "$(git status --porcelain)" ]; then
+            echo "changed=true" >> $GITHUB_OUTPUT
+          else
+            echo "changed=false" >> $GITHUB_OUTPUT
+          fi
 
       - name: Create PR
         if: steps.diff.outputs.changed == 'true'
         working-directory: target
         env:
           GH_TOKEN: ${{ secrets.SYNC_TOKEN }}
+          TARGET_REPO: agent-sh/${{ matrix.repo }}
+          REPO_NAME: ${{ matrix.repo }}
         run: |
-          BRANCH="chore/sync-core-$(date +%Y%m%d-%H%M%S)"
+          BRANCH="chore/sync-core-${REPO_NAME}-$(date +%Y%m%d-%H%M%S)"
           git config user.name "agent-core-bot"
           git config user.email "noreply@agent-sh.github.io"
           git checkout -b "$BRANCH"
-          git add lib/
-          git commit -m "chore: sync core lib from agent-core"
+          git add lib/ CLAUDE.md
+          git commit -m "chore: sync core lib and CLAUDE.md from agent-core"
           git push origin "$BRANCH"
           gh pr create \
-            --repo agent-sh/${{ matrix.repo }} \
-            --title "chore: sync core lib from agent-core" \
-            --body "Automated sync of lib/ from [agent-core](https://github.com/agent-sh/agent-core)." \
+            --repo "$TARGET_REPO" \
+            --base main \
+            --title "chore: sync core lib and CLAUDE.md from agent-core" \
+            --body "Automated sync of lib/ and CLAUDE.md from [agent-core](https://github.com/agent-sh/agent-core)." \
             --head "$BRANCH"
