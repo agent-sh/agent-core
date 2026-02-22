@@ -7,7 +7,15 @@ const path = require('node:path');
 function parseArgs(argv) {
   const args = {};
   for (let i = 2; i < argv.length; i += 2) {
+    if (!argv[i].startsWith('--')) {
+      console.error(`[ERROR] Expected flag starting with --, got: ${argv[i]}`);
+      process.exit(1);
+    }
     const key = argv[i].replace(/^--/, '');
+    if (!argv[i + 1] || argv[i + 1].startsWith('--')) {
+      console.error(`[ERROR] Missing value for flag: ${argv[i]}`);
+      process.exit(1);
+    }
     args[key] = argv[i + 1];
   }
   return args;
@@ -17,14 +25,13 @@ function renderTemplate(template, vars) {
   let result = template;
 
   // Process conditional sections: {{#key}}...{{/key}}
-  result = result.replace(/\{\{#(\w+)\}\}\n([\s\S]*?)\{\{\/\1\}\}\n/g, (_, key, block) => {
+  result = result.replace(/\{\{#(\w+)\}\}\n([\s\S]*?)\{\{\/\1\}\}\n?/g, (_, key, block) => {
     const section = vars[key];
     if (!section || !section.items || section.items.length === 0) {
       return '';
     }
-    // Replace {{items}} inside the block with bullet list
-    const itemList = section.items.map(item => `- ${item}`).join('\n');
-    return block.replace('{{items}}', itemList);
+    const itemList = section.items.map(item => `- ${String(item)}`).join('\n');
+    return block.replace(/\{\{items\}\}/g, itemList);
   });
 
   // Replace simple variables
@@ -75,10 +82,10 @@ function main() {
   // Read components.json (optional)
   let components = { agents: [], skills: [], commands: [] };
   const componentsPath = path.join(targetDir, 'components.json');
-  if (fs.existsSync(componentsPath)) {
-    try {
-      components = JSON.parse(fs.readFileSync(componentsPath, 'utf8'));
-    } catch (err) {
+  try {
+    components = JSON.parse(fs.readFileSync(componentsPath, 'utf8'));
+  } catch (err) {
+    if (err.code !== 'ENOENT') {
       console.error(`[WARN] Cannot parse components.json: ${err.message}`);
     }
   }
@@ -95,7 +102,12 @@ function main() {
 
   // Write CLAUDE.md
   const outputPath = path.join(targetDir, 'CLAUDE.md');
-  fs.writeFileSync(outputPath, output, 'utf8');
+  try {
+    fs.writeFileSync(outputPath, output, 'utf8');
+  } catch (err) {
+    console.error(`[ERROR] Cannot write CLAUDE.md: ${err.message}`);
+    process.exit(1);
+  }
   console.log(`[OK] Generated ${outputPath}`);
 }
 

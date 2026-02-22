@@ -6,7 +6,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const os = require('node:os');
-const { execFileSync } = require('node:child_process');
+const { execFileSync, spawnSync } = require('node:child_process');
 
 const SCRIPT = path.join(__dirname, 'generate-claudemd.js');
 const TEMPLATE = path.join(__dirname, '..', 'templates', 'CLAUDE.md.tmpl');
@@ -17,6 +17,13 @@ function makeTmpDir() {
 
 function run(targetDir) {
   return execFileSync('node', [SCRIPT, '--target', targetDir, '--template', TEMPLATE], {
+    encoding: 'utf8',
+    stdio: ['pipe', 'pipe', 'pipe'],
+  });
+}
+
+function runRaw(...args) {
+  return spawnSync('node', [SCRIPT, ...args], {
     encoding: 'utf8',
     stdio: ['pipe', 'pipe', 'pipe'],
   });
@@ -147,5 +154,41 @@ describe('generate-claudemd', () => {
     const output = fs.readFileSync(path.join(tmpDir, 'CLAUDE.md'), 'utf8');
 
     assert.match(output, /^# plain-name/m);
+  });
+
+  it('exits with error when --target is missing', () => {
+    const result = runRaw('--template', TEMPLATE);
+    assert.strictEqual(result.status, 1);
+    assert.match(result.stderr, /\[ERROR\].*--target/);
+  });
+
+  it('exits with error when package.json is missing', () => {
+    const result = runRaw('--target', tmpDir, '--template', TEMPLATE);
+    assert.strictEqual(result.status, 1);
+    assert.match(result.stderr, /\[ERROR\].*package\.json/);
+  });
+
+  it('warns on malformed components.json and still generates output', () => {
+    writeJson(tmpDir, 'package.json', {
+      name: '@agentsys/bad-components',
+      description: 'Bad components',
+    });
+    fs.writeFileSync(path.join(tmpDir, 'components.json'), '{bad json');
+
+    run(tmpDir);
+    const output = fs.readFileSync(path.join(tmpDir, 'CLAUDE.md'), 'utf8');
+
+    assert.match(output, /^# bad-components/m);
+    assert.doesNotMatch(output, /## Agents/);
+  });
+
+  it('verifies stdout contains OK message', () => {
+    writeJson(tmpDir, 'package.json', {
+      name: 'stdout-test',
+      description: 'Test',
+    });
+
+    const stdout = run(tmpDir);
+    assert.match(stdout, /\[OK\] Generated/);
   });
 });
