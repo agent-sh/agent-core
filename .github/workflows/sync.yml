@@ -52,8 +52,9 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.SYNC_TOKEN }}
           TARGET_REPO: agent-sh/${{ matrix.repo }}
+          REPO_NAME: ${{ matrix.repo }}
         run: |
-          BRANCH="chore/sync-core-${{ matrix.repo }}-$(date +%Y%m%d-%H%M%S)"
+          BRANCH="chore/sync-core-${REPO_NAME}-$(date +%Y%m%d-%H%M%S)"
           git config user.name "agent-core-bot"
           git config user.email "noreply@agent-sh.github.io"
           git checkout -b "$BRANCH"

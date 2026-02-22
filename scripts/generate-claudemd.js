@@ -12,7 +12,7 @@ function parseArgs(argv) {
       process.exit(1);
     }
     const key = argv[i].replace(/^--/, '');
-    if (!argv[i + 1] || argv[i + 1].startsWith('--')) {
+    if (i + 1 >= argv.length || argv[i + 1].startsWith('--')) {
       console.error(`[ERROR] Missing value for flag: ${argv[i]}`);
       process.exit(1);
     }
@@ -30,7 +30,9 @@ function renderTemplate(template, vars) {
     if (!section || !section.items || section.items.length === 0) {
       return '';
     }
-    const itemList = section.items.map(item => `- ${String(item)}`).join('\n');
+    const itemList = section.items
+      .map(item => `- ${String(item).replace(/\{\{/g, '{ {').replace(/\}\}/g, '} }')}`)
+      .join('\n');
     return block.replace(/\{\{items\}\}/g, itemList);
   });
 
