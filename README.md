@@ -6,7 +6,7 @@ Shared core libraries for all agent-sh plugins. Changes here are automatically s
 
 | Repo | How it receives lib/ and CLAUDE.md |
 |------|------------------------------------|
-| agentsys | PR → merge → `sync-lib` propagates to 13 bundled plugins |
+| agentsys | PR → merge → `sync-lib` propagates to bundled plugins |
 | next-task | PR → merge (plugin uses lib/ directly) |
 | ship | PR → merge (plugin uses lib/ directly) |
 | enhance | PR → merge (plugin uses lib/ directly) |
@@ -15,7 +15,6 @@ Shared core libraries for all agent-sh plugins. Changes here are automatically s
 | consult | PR → merge (plugin uses lib/ directly) |
 | debate | PR → merge (plugin uses lib/ directly) |
 | drift-detect | PR → merge (plugin uses lib/ directly) |
-| repo-map | PR → merge (plugin uses lib/ directly) |
 | sync-docs | PR → merge (plugin uses lib/ directly) |
 | audit-project | PR → merge (plugin uses lib/ directly) |
 | perf | PR → merge (plugin uses lib/ directly) |
