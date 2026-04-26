@@ -6,6 +6,17 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [0.4.2] - 2026-04-26
+
+### Fixed
+
+- **Sync workflow is now additive** (#14). Previously `rm -rf target/lib/ && cp -r source/lib/` mirrored agent-core onto consumer repos, silently deleting any file that existed only downstream. Switched to `rsync` without `--delete`. A follow-up should move to an explicit allowlist for tighter supply-chain control.
+
+### Added
+
+- `lib/repo-intel/queries.js` - 28 typed wrappers over `agent-analyzer repo-intel query <type>`. Upstreamed from agentsys where it had been maintained out-of-band. Consumers can now call `require('@agentsys/lib').repoIntel.queries.hotspots(cwd, { limit: 20 })` uniformly.
+- `lib/state/workflow-state.js` gains `updateTasks`, `readTasks`, `claimTask`, `releaseTask`, `defaultTasksSchema`, `normalizeTasksData`. Stricter schema validation and atomic updates for the shared `tasks.json` registry. Also upstreamed from agentsys.
+
 ## [0.4.1] - 2026-04-26
 
 ### Security
