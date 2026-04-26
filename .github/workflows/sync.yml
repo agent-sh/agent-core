@@ -29,21 +29,66 @@ jobs:
           token: ${{ secrets.SYNC_TOKEN }}
           path: target
 
-      - name: Sync lib (additive — preserve downstream-only files)
+      - name: Sync lib (explicit allowlist)
         run: |
-          # rsync WITHOUT --delete: agent-core's files are copied into the
-          # consumer's lib/, but any file that exists only downstream (e.g.
-          # lib/repo-intel/queries.js in agentsys) is preserved. The earlier
-          # `rm -rf target/lib/ && cp -r` mirrored upstream and silently
-          # deleted downstream-only code — see 2026-04-26 sync regression
-          # that wiped 300 LOC from agentsys on v0.4.1 propagation.
+          # Explicit allowlist policy. Previously this rsync copied
+          # everything under lib/ additively. The audit HIGH finding was:
+          # "any file a committer adds under lib/ replicates everywhere -
+          # allowlist needed".
           #
-          # Excludes:
-          # - *.test.js — agent-core's inline node:test suites break
-          #   consumers that run Jest with a broad testMatch. Consumers
-          #   can add them back individually if they want to run them.
+          # rsync --include / --exclude rules:
+          # 1. Allowlisted subdirs are synced recursively (/*** pattern).
+          # 2. Top-level files index.js, adapter-transforms.js sync.
+          # 3. A denylist of known-internal path patterns is rejected
+          #    (belt-and-suspenders against adding them to the allowlist
+          #    by mistake - e.g. lib/dev-only/, lib/scripts/, lib/.cache/).
+          # 4. Consumer-only lib/ files NOT in the allowlist are preserved
+          #    (no --delete), same as the previous additive behavior.
+          #
+          # To add a new shared subdir: add it to the include list below
+          # AND document why it belongs in the shared core.
+          # To keep a subdir agent-core-internal: put it under lib/dev-only/
+          # or name it with a leading dot (.cache, .internal) - both are
+          # denylisted.
+          #
+          # Excludes *.test.js because agent-core's inline node:test suites
+          # break consumers that run Jest with a broad testMatch.
           mkdir -p target/lib
-          rsync -a --exclude='*.test.js' source/lib/ target/lib/
+
+          # IMPORTANT: rsync filter rules are evaluated in order, first
+          # match wins. Test-file excludes MUST come before the subdir
+          # `***` includes — otherwise `--include='binary/***'` matches
+          # `binary/index.test.js` first and the later
+          # `--exclude='*.test.js'` never fires. Same logic for any
+          # other sub-path exclusion that should override a broad
+          # include.
+          rsync -a \
+            --exclude='*.test.js' \
+            --exclude='dev-only/***' \
+            --exclude='scripts/***' \
+            --exclude='.cache/***' \
+            --exclude='.internal/***' \
+            --include='index.js' \
+            --include='adapter-transforms.js' \
+            --include='binary/***' \
+            --include='collectors/***' \
+            --include='config/***' \
+            --include='cross-platform/***' \
+            --include='discovery/***' \
+            --include='drift-detect/***' \
+            --include='enhance/***' \
+            --include='patterns/***' \
+            --include='perf/***' \
+            --include='platform/***' \
+            --include='repo-intel/***' \
+            --include='repo-map/***' \
+            --include='schemas/***' \
+            --include='sources/***' \
+            --include='state/***' \
+            --include='types/***' \
+            --include='utils/***' \
+            --exclude='*' \
+            source/lib/ target/lib/
 
       - name: Generate CLAUDE.md
         run: node source/scripts/generate-claudemd.js --target target --template source/templates/CLAUDE.md.tmpl
