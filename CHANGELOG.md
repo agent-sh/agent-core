@@ -6,6 +6,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [0.4.4] - 2026-04-26
+
+### Security
+- **lib/enhance/fixer.js refuses symlinked targets + closes TOCTOU race** (#15). Before each read/backup/write, `assertNotSymlink` calls `fs.lstatSync` and refuses operations on symbolic links. Both the initial check and the check immediately before write are present, closing the gap where an attacker could swap a regular file for a symlink between calls. Previously a hostile repo could point `agent.md` at `~/.ssh/authorized_keys` and a HIGH-certainty auto-fix would overwrite the target.
+
 ## [0.4.3] - 2026-04-26
 
 ### Fixed
@@ -86,7 +91,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Initial seed: `lib/` directory ported from agentsys, covering platform detection, pattern matching, workflow state, collectors, adapters, and utilities.
 - Sync workflow that triggers `lib/` propagation to consumer repos on push to `main`.
 
-[Unreleased]: https://github.com/agent-sh/agent-core/compare/v0.4.1...HEAD
+[Unreleased]: https://github.com/agent-sh/agent-core/compare/v0.4.4...HEAD
+[0.4.4]: https://github.com/agent-sh/agent-core/compare/v0.4.3...v0.4.4
+[0.4.3]: https://github.com/agent-sh/agent-core/compare/v0.4.2...v0.4.3
+[0.4.2]: https://github.com/agent-sh/agent-core/compare/v0.4.1...v0.4.2
 [0.4.1]: https://github.com/agent-sh/agent-core/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/agent-sh/agent-core/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/agent-sh/agent-core/compare/v0.2.0...v0.3.0
