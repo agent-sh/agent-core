@@ -37,8 +37,13 @@ jobs:
           # `rm -rf target/lib/ && cp -r` mirrored upstream and silently
           # deleted downstream-only code — see 2026-04-26 sync regression
           # that wiped 300 LOC from agentsys on v0.4.1 propagation.
+          #
+          # Excludes:
+          # - *.test.js — agent-core's inline node:test suites break
+          #   consumers that run Jest with a broad testMatch. Consumers
+          #   can add them back individually if they want to run them.
           mkdir -p target/lib
-          rsync -a source/lib/ target/lib/
+          rsync -a --exclude='*.test.js' source/lib/ target/lib/
 
       - name: Generate CLAUDE.md
         run: node source/scripts/generate-claudemd.js --target target --template source/templates/CLAUDE.md.tmpl
