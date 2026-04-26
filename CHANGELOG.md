@@ -6,6 +6,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [0.4.5] - 2026-04-26
+
+### Security
+- **lib/binary: client-side SLSA build-provenance verification** (#16). After SHA-256 sidecar check, the downloader spawns `gh attestation verify <file> --repo agent-sh/agent-analyzer --format json`. On mismatch the binary is refused before extraction. Soft-warns if `gh` is not on PATH; set `AGENT_ANALYZER_REQUIRE_ATTESTATION=1` to make missing `gh` a hard fail.
+- **ensureBinarySync forwards requireAttestation** to its child process (previously silently dropped).
+- **Sync workflow allowlist** (#17). Replaced broad `rsync -a` with explicit `--include`/`--exclude` rules. Test files and known-internal subdirs (`dev-only/`, `scripts/`, `.cache/`, `.internal/`) never propagate. Filter-rule ordering documented - exclude rules come BEFORE subdir includes or they never fire.
+
 ## [0.4.4] - 2026-04-26
 
 ### Security
