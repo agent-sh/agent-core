@@ -6,6 +6,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [0.4.3] - 2026-04-26
+
+### Fixed
+
+- **lib/cross-platform: `truncate` is code-point-safe again**. Uses `[...text]` spread to slice on Unicode code points (not UTF-16 code units), so emoji on the boundary don't end up as orphan surrogates. Also returns the input unchanged for `maxLength <= 0` instead of a bare `"..."`. Upstreamed from agentsys where the regression was caught first.
+- **Sync workflow excludes `*.test.js`** to stop agent-core's inline `node:test` suites from breaking consumers that run Jest with a broad `testMatch`. Consumers that want to run the tests can copy the file in individually.
+
 ## [0.4.2] - 2026-04-26
 
 ### Fixed
