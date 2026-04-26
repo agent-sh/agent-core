@@ -28,10 +28,16 @@ jobs:
           token: ${{ secrets.SYNC_TOKEN }}
           path: target
 
-      - name: Sync lib
+      - name: Sync lib (additive — preserve downstream-only files)
         run: |
-          rm -rf target/lib/
-          cp -r source/lib/ target/lib/
+          # rsync WITHOUT --delete: agent-core's files are copied into the
+          # consumer's lib/, but any file that exists only downstream (e.g.
+          # lib/repo-intel/queries.js in agentsys) is preserved. The earlier
+          # `rm -rf target/lib/ && cp -r` mirrored upstream and silently
+          # deleted downstream-only code — see 2026-04-26 sync regression
+          # that wiped 300 LOC from agentsys on v0.4.1 propagation.
+          mkdir -p target/lib
+          rsync -a source/lib/ target/lib/
 
       - name: Generate CLAUDE.md
         run: node source/scripts/generate-claudemd.js --target target --template source/templates/CLAUDE.md.tmpl
