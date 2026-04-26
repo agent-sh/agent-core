@@ -55,7 +55,19 @@ jobs:
           # break consumers that run Jest with a broad testMatch.
           mkdir -p target/lib
 
+          # IMPORTANT: rsync filter rules are evaluated in order, first
+          # match wins. Test-file excludes MUST come before the subdir
+          # `***` includes — otherwise `--include='binary/***'` matches
+          # `binary/index.test.js` first and the later
+          # `--exclude='*.test.js'` never fires. Same logic for any
+          # other sub-path exclusion that should override a broad
+          # include.
           rsync -a \
+            --exclude='*.test.js' \
+            --exclude='dev-only/***' \
+            --exclude='scripts/***' \
+            --exclude='.cache/***' \
+            --exclude='.internal/***' \
             --include='index.js' \
             --include='adapter-transforms.js' \
             --include='binary/***' \
@@ -75,11 +87,6 @@ jobs:
             --include='state/***' \
             --include='types/***' \
             --include='utils/***' \
-            --exclude='dev-only/***' \
-            --exclude='scripts/***' \
-            --exclude='.cache/***' \
-            --exclude='.internal/***' \
-            --exclude='*.test.js' \
             --exclude='*' \
             source/lib/ target/lib/
 
