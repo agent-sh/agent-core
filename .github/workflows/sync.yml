@@ -15,7 +15,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        repo: [agentsys, next-task, ship, enhance, deslop, learn, consult, debate, drift-detect, sync-docs, audit-project, perf, web-ctl]
+        repo: [agentsys, next-task, ship, enhance, deslop, learn, consult, debate, drift-detect, sync-docs, audit-project, perf, repo-intel]
     steps:
       - name: Checkout agent-core
         uses: actions/checkout@v4
