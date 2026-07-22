@@ -6,6 +6,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Fixed
+
+- Restored the Cursor and Kiro discovery and transformation APIs used by consumer installers. A prior core sync removed these exports while AgentSys continued calling them.
+
+### Tests
+
+- Added regression coverage for the shared Cursor/Kiro API surface, command discovery mappings, and Kiro agent JSON generation.
+
 ## [0.4.5] - 2026-04-26
 
 ### Security
