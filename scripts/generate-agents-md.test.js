@@ -8,11 +8,11 @@ const path = require('node:path');
 const os = require('node:os');
 const { execFileSync, spawnSync } = require('node:child_process');
 
-const SCRIPT = path.join(__dirname, 'generate-claudemd.js');
-const TEMPLATE = path.join(__dirname, '..', 'templates', 'CLAUDE.md.tmpl');
+const SCRIPT = path.join(__dirname, 'generate-agents-md.js');
+const TEMPLATE = path.join(__dirname, '..', 'templates', 'AGENTS.md.tmpl');
 
 function makeTmpDir() {
-  return fs.mkdtempSync(path.join(os.tmpdir(), 'claudemd-test-'));
+  return fs.mkdtempSync(path.join(os.tmpdir(), 'agents-md-test-'));
 }
 
 function run(targetDir) {
@@ -33,7 +33,7 @@ function writeJson(dir, filename, data) {
   fs.writeFileSync(path.join(dir, filename), JSON.stringify(data, null, 2));
 }
 
-describe('generate-claudemd', () => {
+describe('generate-agents-md', () => {
   let tmpDir;
 
   beforeEach(() => {
@@ -44,7 +44,58 @@ describe('generate-claudemd', () => {
     fs.rmSync(tmpDir, { recursive: true, force: true });
   });
 
-  it('generates full CLAUDE.md with all components (next-task shape)', () => {
+  it('preserves manually maintained instructions and does not create a mirror', () => {
+    writeJson(tmpDir, 'package.json', { name: 'custom' });
+    const manual = '# Custom policy\r\n\r\nKeep this unique guidance.\r\n';
+    fs.writeFileSync(path.join(tmpDir, 'AGENTS.md'), manual);
+    run(tmpDir);
+    assert.equal(fs.readFileSync(path.join(tmpDir, 'AGENTS.md'), 'utf8'), manual);
+    assert.equal(fs.existsSync(path.join(tmpDir, 'CLAUDE.md')), false);
+  });
+
+  it('refreshes only generator-owned content and preserves additions', () => {
+    writeJson(tmpDir, 'package.json', { name: 'before' });
+    run(tmpDir);
+    const file = path.join(tmpDir, 'AGENTS.md');
+    fs.writeFileSync(file, 'Local prefix\n' + fs.readFileSync(file, 'utf8') + '\nLocal suffix\n');
+    writeJson(tmpDir, 'package.json', { name: 'after' });
+    run(tmpDir);
+    const updated = fs.readFileSync(file, 'utf8');
+    assert.match(updated, /^Local prefix\n/);
+    assert.match(updated, /\n# after\n/);
+    assert.doesNotMatch(updated, /# before/);
+    assert.match(updated, /\nLocal suffix\n$/);
+    assert.equal(fs.existsSync(path.join(tmpDir, 'CLAUDE.md')), false);
+  });
+
+  it('rejects malformed managed markers without changing the file', () => {
+    writeJson(tmpDir, 'package.json', { name: 'custom' });
+    for (const value of [
+      '<!-- agent-core:instructions:start -->\nOnly a start',
+      '<!-- agent-core:instructions:end -->\n<!-- agent-core:instructions:start -->',
+      '<!-- agent-core:instructions:start --><!-- agent-core:instructions:start --><!-- agent-core:instructions:end -->',
+    ]) {
+      const file = path.join(tmpDir, 'AGENTS.md');
+      fs.writeFileSync(file, value);
+      const result = runRaw('--target', tmpDir, '--template', TEMPLATE);
+      assert.notEqual(result.status, 0);
+      assert.match(result.stderr, /malformed or duplicate/);
+      assert.equal(fs.readFileSync(file, 'utf8'), value);
+    }
+  });
+
+  it('rejects symlinks without changing the target', () => {
+    writeJson(tmpDir, 'package.json', { name: 'custom' });
+    const target = path.join(tmpDir, 'policy.md');
+    fs.writeFileSync(target, 'Keep this');
+    fs.symlinkSync(target, path.join(tmpDir, 'AGENTS.md'));
+    const result = runRaw('--target', tmpDir, '--template', TEMPLATE);
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, /symlink/);
+    assert.equal(fs.readFileSync(target, 'utf8'), 'Keep this');
+  });
+
+  it('generates full AGENTS.md with all components (next-task shape)', () => {
     writeJson(tmpDir, 'package.json', {
       name: '@agentsys/next-task',
       description: 'Master workflow orchestrator',
@@ -58,7 +109,7 @@ describe('generate-claudemd', () => {
     });
 
     run(tmpDir);
-    const output = fs.readFileSync(path.join(tmpDir, 'CLAUDE.md'), 'utf8');
+    const output = fs.readFileSync(path.join(tmpDir, 'AGENTS.md'), 'utf8');
 
     assert.match(output, /^# next-task/m);
     assert.match(output, /> Master workflow orchestrator/);
@@ -74,7 +125,7 @@ describe('generate-claudemd', () => {
     assert.match(output, /## Core Priorities/);
   });
 
-  it('generates CLAUDE.md with only commands (ship shape)', () => {
+  it('generates AGENTS.md with only commands (ship shape)', () => {
     writeJson(tmpDir, 'package.json', {
       name: '@agentsys/ship',
       description: 'Complete PR workflow',
@@ -86,7 +137,7 @@ describe('generate-claudemd', () => {
     });
 
     run(tmpDir);
-    const output = fs.readFileSync(path.join(tmpDir, 'CLAUDE.md'), 'utf8');
+    const output = fs.readFileSync(path.join(tmpDir, 'AGENTS.md'), 'utf8');
 
     assert.match(output, /^# ship/m);
     assert.ok(!output.includes('## Agents'));
@@ -95,7 +146,7 @@ describe('generate-claudemd', () => {
     assert.match(output, /- ship$/m);
   });
 
-  it('generates CLAUDE.md with all empty components', () => {
+  it('generates AGENTS.md with all empty components', () => {
     writeJson(tmpDir, 'package.json', {
       name: '@agentsys/empty-plugin',
       description: 'An empty plugin',
@@ -107,7 +158,7 @@ describe('generate-claudemd', () => {
     });
 
     run(tmpDir);
-    const output = fs.readFileSync(path.join(tmpDir, 'CLAUDE.md'), 'utf8');
+    const output = fs.readFileSync(path.join(tmpDir, 'AGENTS.md'), 'utf8');
 
     assert.match(output, /^# empty-plugin/m);
     assert.ok(!output.includes('## Agents'));
@@ -123,7 +174,7 @@ describe('generate-claudemd', () => {
     });
 
     run(tmpDir);
-    const output = fs.readFileSync(path.join(tmpDir, 'CLAUDE.md'), 'utf8');
+    const output = fs.readFileSync(path.join(tmpDir, 'AGENTS.md'), 'utf8');
 
     assert.match(output, /^# no-components/m);
     assert.ok(!output.includes('## Agents'));
@@ -138,7 +189,7 @@ describe('generate-claudemd', () => {
     });
 
     run(tmpDir);
-    const output = fs.readFileSync(path.join(tmpDir, 'CLAUDE.md'), 'utf8');
+    const output = fs.readFileSync(path.join(tmpDir, 'AGENTS.md'), 'utf8');
 
     assert.match(output, /^# my-plugin/m);
     assert.ok(!output.includes('@agentsys/'));
@@ -151,7 +202,7 @@ describe('generate-claudemd', () => {
     });
 
     run(tmpDir);
-    const output = fs.readFileSync(path.join(tmpDir, 'CLAUDE.md'), 'utf8');
+    const output = fs.readFileSync(path.join(tmpDir, 'AGENTS.md'), 'utf8');
 
     assert.match(output, /^# plain-name/m);
   });
@@ -176,7 +227,7 @@ describe('generate-claudemd', () => {
     fs.writeFileSync(path.join(tmpDir, 'components.json'), '{bad json');
 
     run(tmpDir);
-    const output = fs.readFileSync(path.join(tmpDir, 'CLAUDE.md'), 'utf8');
+    const output = fs.readFileSync(path.join(tmpDir, 'AGENTS.md'), 'utf8');
 
     assert.match(output, /^# bad-components/m);
     assert.doesNotMatch(output, /## Agents/);

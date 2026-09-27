@@ -102,12 +102,39 @@ function main() {
 
   const output = renderTemplate(template, vars);
 
-  // Write CLAUDE.md
-  const outputPath = path.join(targetDir, 'CLAUDE.md');
+  // Only generated blocks belong to this sync. Repository-specific guidance
+  // outside the block, and existing files without markers, stay untouched.
+  const outputPath = path.join(targetDir, 'AGENTS.md');
+  const start = '<!-- agent-core:instructions:start -->';
+  const end = '<!-- agent-core:instructions:end -->';
+  const block = `${start}\n${output.trimEnd()}\n${end}`;
+  let next = `${block}\n`;
   try {
-    fs.writeFileSync(outputPath, output, 'utf8');
+    let existing;
+    try {
+      if (fs.lstatSync(outputPath).isSymbolicLink()) {
+        throw new Error('AGENTS.md is a symlink; materialize it before sync');
+      }
+      existing = fs.readFileSync(outputPath, 'utf8');
+    } catch (err) {
+      if (err.code !== 'ENOENT') throw err;
+    }
+    if (existing !== undefined) {
+      const starts = existing.split(start).length - 1;
+      const ends = existing.split(end).length - 1;
+      if (starts === 0 && ends === 0) {
+        console.log(`[OK] Preserved manually maintained ${outputPath}`);
+        return;
+      }
+      if (starts !== 1 || ends !== 1 || existing.indexOf(start) > existing.indexOf(end)) {
+        throw new Error('AGENTS.md has malformed or duplicate managed markers');
+      }
+      next = existing.slice(0, existing.indexOf(start)) + block
+        + existing.slice(existing.indexOf(end) + end.length);
+    }
+    fs.writeFileSync(outputPath, next, 'utf8');
   } catch (err) {
-    console.error(`[ERROR] Cannot write CLAUDE.md: ${err.message}`);
+    console.error(`[ERROR] Cannot write AGENTS.md: ${err.message}`);
     process.exit(1);
   }
   console.log(`[OK] Generated ${outputPath}`);
