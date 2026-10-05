@@ -1,0 +1,34 @@
+{
+  "deslop": [
+    {
+      "reason": "Host authorization for command execution (deslop#74, deslop#75). These runners and probes take a required authorizeExecution callback and deny any launch without it, through deslop's own lib/utils/command-execution.js. The shared copies run without a callback, and perf (scripts/perf-phase.js), next-task (/next-task policy) and agentsys tests call them that way, so the change cannot move into the shared lib until those callers pass one.",
+      "paths": [
+        "lib/patterns/cli-enhancers.js",
+        "lib/perf/benchmark-runner.js",
+        "lib/perf/breaking-point-runner.js",
+        "lib/perf/constraint-runner.js",
+        "lib/perf/optimization-runner.js",
+        "lib/perf/profiling-runner.js",
+        "lib/platform/verify-tools.js",
+        "lib/sources/custom-handler.js",
+        "lib/sources/policy-questions.js"
+      ]
+    }
+  ],
+  "repo-intel": [
+    {
+      "reason": "Host authorization for command execution (repo-intel#34, repo-intel#35), the same bytes as deslop. See the deslop entry.",
+      "paths": [
+        "lib/patterns/cli-enhancers.js",
+        "lib/perf/benchmark-runner.js",
+        "lib/perf/breaking-point-runner.js",
+        "lib/perf/constraint-runner.js",
+        "lib/perf/optimization-runner.js",
+        "lib/perf/profiling-runner.js",
+        "lib/platform/verify-tools.js",
+        "lib/sources/custom-handler.js",
+        "lib/sources/policy-questions.js"
+      ]
+    }
+  ]
+}

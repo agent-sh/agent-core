@@ -3,7 +3,7 @@ name: Sync to consumers
 on:
   push:
     branches: [main]
-    paths: ['lib/**', 'templates/**', 'scripts/generate-agents-md.js']
+    paths: ['lib/**', 'templates/**', 'scripts/generate-agents-md.js', 'scripts/sync-exclude.js', 'sync-exclude.json']
   workflow_dispatch:
 
 permissions:
@@ -28,6 +28,16 @@ jobs:
           repository: agent-sh/${{ matrix.repo }}
           token: ${{ secrets.SYNC_TOKEN }}
           path: target
+
+      - name: Per-consumer excludes
+        env:
+          REPO_NAME: ${{ matrix.repo }}
+        run: |
+          # Files this consumer keeps on purpose, listed with the reason in
+          # sync-exclude.json. The script fails on a malformed entry or a path
+          # agent-core does not have, which fails this consumer's sync.
+          node source/scripts/sync-exclude.js --repo "$REPO_NAME" --source source > "$RUNNER_TEMP/sync-exclude.rules"
+          cat "$RUNNER_TEMP/sync-exclude.rules"
 
       - name: Sync lib (explicit allowlist)
         run: |
@@ -61,8 +71,10 @@ jobs:
           # `binary/index.test.js` first and the later
           # `--exclude='*.test.js'` never fires. Same logic for any
           # other sub-path exclusion that should override a broad
-          # include.
+          # include. The per-consumer --exclude-from rules go first of all
+          # for the same reason.
           rsync -a \
+            --exclude-from="$RUNNER_TEMP/sync-exclude.rules" \
             --exclude='*.test.js' \
             --exclude='dev-only/***' \
             --exclude='scripts/***' \
