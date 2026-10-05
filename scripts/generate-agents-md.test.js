@@ -7,6 +7,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const os = require('node:os');
 const { execFileSync, spawnSync } = require('node:child_process');
+const { analyzeFile } = require('../lib/enhance/projectmemory-analyzer');
 
 const SCRIPT = path.join(__dirname, 'generate-agents-md.js');
 const TEMPLATE = path.join(__dirname, '..', 'templates', 'AGENTS.md.tmpl');
@@ -120,9 +121,44 @@ describe('generate-agents-md', () => {
     assert.match(output, /- discover-tasks/);
     assert.match(output, /## Commands/);
     assert.match(output, /- next-task/);
-    assert.match(output, /## Critical Rules/);
-    assert.match(output, /## Model Selection/);
-    assert.match(output, /## Core Priorities/);
+    assert.match(output, /This repo is an \[agentsys\]/);
+    assert.match(output, /## Conventions/);
+    assert.match(output, /## Dev commands/);
+  });
+
+  it('carries no stale template text', () => {
+    writeJson(tmpDir, 'package.json', { name: '@agentsys/plain', description: 'Plain' });
+    run(tmpDir);
+    const output = fs.readFileSync(path.join(tmpDir, 'AGENTS.md'), 'utf8');
+
+    assert.doesNotMatch(output, /## Critical Rules/);
+    assert.doesNotMatch(output, /## Model Selection/);
+    assert.doesNotMatch(output, /npm run validate/);
+    assert.doesNotMatch(output, /GPU/);
+    assert.doesNotMatch(output, /\*\*[^*]+\*\*/);
+
+    // agnix PE-001/CC-MEM-008 flag critical keywords 40-60% down the file.
+    // The shortest output (no components) is the worst case.
+    const lines = output.split('\n');
+    const idx = lines.findIndex(line => line.includes('[CRITICAL]'));
+    assert.ok(idx >= 0 && idx / lines.length < 0.4, `[CRITICAL] at ${idx}/${lines.length}`);
+  });
+
+  it('passes the enhance project-memory analyzer', () => {
+    writeJson(tmpDir, 'package.json', { name: '@agentsys/plain', description: 'Plain' });
+    for (const dir of ['commands', 'agents', 'skills', 'lib']) {
+      fs.mkdirSync(path.join(tmpDir, dir));
+    }
+    run(tmpDir);
+    const results = analyzeFile(path.join(tmpDir, 'AGENTS.md'), { verbose: true });
+    const issues = [
+      ...results.structureIssues,
+      ...results.referenceIssues,
+      ...results.efficiencyIssues,
+      ...results.qualityIssues,
+      ...results.crossPlatformIssues,
+    ].map(issue => `${issue.patternId}: ${issue.issue}`);
+    assert.deepEqual(issues, []);
   });
 
   it('generates AGENTS.md with only commands (ship shape)', () => {
@@ -164,7 +200,7 @@ describe('generate-agents-md', () => {
     assert.ok(!output.includes('## Agents'));
     assert.ok(!output.includes('## Skills'));
     assert.ok(!output.includes('## Commands'));
-    assert.match(output, /## Critical Rules/);
+    assert.match(output, /## Conventions/);
   });
 
   it('handles missing components.json gracefully', () => {

@@ -6,8 +6,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Changed
+
+- `templates/AGENTS.md.tmpl` follows the current-model style the consumer repos moved to: a "This repo is" paragraph that says what the plugin is and which `lib/` files the sync owns, plain Conventions with the reason for each rule, and Dev commands every consumer can run (`npm test` where defined, `agnix .`). The agent, skill and command lists move to the end, so the `[CRITICAL]` marker stays out of agnix's lost-in-the-middle zone in short files. It drops the bold Critical Rules list, the generic model table, the GPU validation text that does not apply to these CPU-only plugins, and `npm run validate`, which 6 of the 13 synced consumers do not define. Placeholders, conditional sections and the managed markers are unchanged. Generated output passes agnix with no rules disabled.
+
 ### Fixed
 
+- The enhance project-memory analyzer accepts the headings the template and consumer files use. `missing_critical_rules` passes on any `## Rules`, `## <word> rules`, `## Conventions` or `## <word> conventions` heading, not only `## Critical Rules`, `## Priority Rules` or `## Must-know`. `missing_architecture` accepts `## Project overview` (the heading agnix AGM-004 asks for) and `## Layout`. Before this, `/enhance` reported HIGH `missing_critical_rules` on the template output and told maintainers to add back the section the template dropped.
 - Restored the Cursor and Kiro discovery and transformation APIs used by consumer installers. A prior core sync removed these exports while AgentSys continued calling them.
 
 ### Tests
