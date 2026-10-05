@@ -7,6 +7,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const os = require('node:os');
 const { execFileSync, spawnSync } = require('node:child_process');
+const { analyzeFile } = require('../lib/enhance/projectmemory-analyzer');
 
 const SCRIPT = path.join(__dirname, 'generate-agents-md.js');
 const TEMPLATE = path.join(__dirname, '..', 'templates', 'AGENTS.md.tmpl');
@@ -141,6 +142,23 @@ describe('generate-agents-md', () => {
     const lines = output.split('\n');
     const idx = lines.findIndex(line => line.includes('[CRITICAL]'));
     assert.ok(idx >= 0 && idx / lines.length < 0.4, `[CRITICAL] at ${idx}/${lines.length}`);
+  });
+
+  it('passes the enhance project-memory analyzer', () => {
+    writeJson(tmpDir, 'package.json', { name: '@agentsys/plain', description: 'Plain' });
+    for (const dir of ['commands', 'agents', 'skills', 'lib']) {
+      fs.mkdirSync(path.join(tmpDir, dir));
+    }
+    run(tmpDir);
+    const results = analyzeFile(path.join(tmpDir, 'AGENTS.md'), { verbose: true });
+    const issues = [
+      ...results.structureIssues,
+      ...results.referenceIssues,
+      ...results.efficiencyIssues,
+      ...results.qualityIssues,
+      ...results.crossPlatformIssues,
+    ].map(issue => `${issue.patternId}: ${issue.issue}`);
+    assert.deepEqual(issues, []);
   });
 
   it('generates AGENTS.md with only commands (ship shape)', () => {
