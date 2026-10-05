@@ -12,11 +12,18 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Fixed
 
+- Adapter transforms point plugin paths at the agentsys install layout (`~/.agentsys/plugins/<plugin>/`) instead of Claude Code's versioned plugin cache, matching agent-sh/agentsys#413 so the next sync does not revert it:
+  - Skill transforms for Kiro, Cursor, OpenCode (with `pluginInstallPath`) and the new `transformSkillForCodex` replace "two directories up from this skill" with the plugin install path. Two directories up from `~/.kiro/skills/<name>/` is `~/.kiro`, and the other platforms' skills directories have the same problem.
+  - Skill, command and agent transforms on every platform rewrite `**/<plugin>/*/` globs to `**/<plugin>/**/`, which matches with or without a version directory (consult-agent, debate-orchestrator, sync-docs-agent, prepare-delivery-agent, the debate command and reference). Only plugin names change: the plugin itself, the plugins installed next to it, and for OpenCode the plugins under `repoRoot`. A glob such as `**/src/*/index.ts` keeps its single directory level.
+  - With an install path (Kiro, Cursor and Codex), `${CLAUDE_PLUGIN_ROOT}/../../<plugin>/*/` becomes `~/.agentsys/plugins/<plugin>/`, so the debate prompt finds consult's ACP runner at `~/.agentsys/plugins/consult/acp/run.js`. OpenCode keeps its `${PLUGIN_ROOT}` placeholder, so only its globs change.
+  - `transformSkillForCodex` keeps a plugin skill's frontmatter and maps `AskUserQuestion` to `request_user_input`, as `transformForCodex` does for commands.
+  - The OpenCode body transform adds its agent note only when the content mentions an agent. The install path a skill transform inserts (`~/.agentsys/...`) no longer counts, so consult, deslop and validate-delivery `SKILL.md` stay as they were on OpenCode.
 - The enhance project-memory analyzer accepts the headings the template and consumer files use. `missing_critical_rules` passes on any `## Rules`, `## <word> rules`, `## Conventions` or `## <word> conventions` heading, not only `## Critical Rules`, `## Priority Rules` or `## Must-know`. `missing_architecture` accepts `## Project overview` (the heading agnix AGM-004 asks for) and `## Layout`. Before this, `/enhance` reported HIGH `missing_critical_rules` on the template output and told maintainers to add back the section the template dropped.
 - Restored the Cursor and Kiro discovery and transformation APIs used by consumer installers. A prior core sync removed these exports while AgentSys continued calling them.
 
 ### Tests
 
+- `lib/adapter-transforms.test.js` covers the install-layout rewrites for skills on Kiro, Cursor, Codex and OpenCode, Codex skill frontmatter, versioned-cache paths in Kiro, Codex, Cursor and OpenCode commands and agents, globs on names that are not plugins, and the OpenCode agent note next to an install path.
 - Added regression coverage for the shared Cursor/Kiro API surface, command discovery mappings, and Kiro agent JSON generation.
 
 ## [0.4.5] - 2026-04-26
