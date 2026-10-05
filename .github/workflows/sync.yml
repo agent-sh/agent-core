@@ -51,7 +51,11 @@ jobs:
           #
           # rsync --include / --exclude rules:
           # 1. Allowlisted subdirs are synced recursively (/*** pattern).
-          # 2. Top-level files index.js, adapter-transforms.js sync.
+          # 2. Top-level files index.js, adapter-transforms.js, agentsys.js
+          #    sync. agentsys.js is the runtime resolver that
+          #    collectors/analyzer-queries.js requires as '../agentsys' and
+          #    that consumer commands load (ship /release); it lives here so
+          #    every consumer carries the same copy.
           # 3. A denylist of known-internal path patterns is rejected
           #    (belt-and-suspenders against adding them to the allowlist
           #    by mistake - e.g. lib/dev-only/, lib/scripts/, lib/.cache/).
@@ -85,6 +89,7 @@ jobs:
             --exclude='.internal/***' \
             --include='index.js' \
             --include='adapter-transforms.js' \
+            --include='agentsys.js' \
             --include='binary/***' \
             --include='collectors/***' \
             --include='config/***' \
