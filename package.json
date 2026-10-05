@@ -1,0 +1,12 @@
+{
+  "name": "agent-core",
+  "private": true,
+  "description": "Shared core libraries for agent-sh plugins",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "scripts": {
+    "test": "node --test"
+  }
+}

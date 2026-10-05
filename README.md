@@ -41,7 +41,7 @@ node scripts/generate-agents-md.js --target ../some-plugin --template templates/
 
 ## Developing
 
-Edit files in `lib/` for library changes. Edit `templates/AGENTS.md.tmpl` to change the managed block in generated AGENTS.md files. On merge, changes propagate automatically. To test locally before merging:
+Edit files in `lib/` for library changes. `npm test` runs agent-core's own tests (`node --test`, Node 18 or later). Edit `templates/AGENTS.md.tmpl` to change the managed block in generated AGENTS.md files. On merge, changes propagate automatically. To test locally before merging:
 
 ```bash
 # Copy to a consumer repo for testing
