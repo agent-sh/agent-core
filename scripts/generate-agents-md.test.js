@@ -120,9 +120,21 @@ describe('generate-agents-md', () => {
     assert.match(output, /- discover-tasks/);
     assert.match(output, /## Commands/);
     assert.match(output, /- next-task/);
-    assert.match(output, /## Critical Rules/);
-    assert.match(output, /## Model Selection/);
-    assert.match(output, /## Core Priorities/);
+    assert.match(output, /## Overview/);
+    assert.match(output, /## Conventions/);
+    assert.match(output, /## Dev commands/);
+  });
+
+  it('carries no stale template text', () => {
+    writeJson(tmpDir, 'package.json', { name: '@agentsys/plain', description: 'Plain' });
+    run(tmpDir);
+    const output = fs.readFileSync(path.join(tmpDir, 'AGENTS.md'), 'utf8');
+
+    assert.doesNotMatch(output, /## Critical Rules/);
+    assert.doesNotMatch(output, /## Model Selection/);
+    assert.doesNotMatch(output, /npm run validate/);
+    assert.doesNotMatch(output, /GPU/);
+    assert.doesNotMatch(output, /\*\*[^*]+\*\*/);
   });
 
   it('generates AGENTS.md with only commands (ship shape)', () => {
@@ -164,7 +176,7 @@ describe('generate-agents-md', () => {
     assert.ok(!output.includes('## Agents'));
     assert.ok(!output.includes('## Skills'));
     assert.ok(!output.includes('## Commands'));
-    assert.match(output, /## Critical Rules/);
+    assert.match(output, /## Conventions/);
   });
 
   it('handles missing components.json gracefully', () => {
