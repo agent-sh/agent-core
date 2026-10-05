@@ -14,13 +14,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 - The enhance project-memory analyzer accepts the headings the template and consumer files use. `missing_critical_rules` passes on any `## Rules`, `## <word> rules`, `## Conventions` or `## <word> conventions` heading, not only `## Critical Rules`, `## Priority Rules` or `## Must-know`. `missing_architecture` accepts `## Project overview` (the heading agnix AGM-004 asks for) and `## Layout`. Before this, `/enhance` reported HIGH `missing_critical_rules` on the template output and told maintainers to add back the section the template dropped.
 - The docs analyzer's `broken_internal_link` check resolves a relative link against the directory of the file that holds it and checks the target on disk. Before, it looked the link up in a list of `.md` paths relative to the analyzed directory, and in an empty list when it analyzed one file, so a single file reported every relative file link as broken, and a directory run flagged sibling links from nested files, links that leave the directory and links to non-markdown files. URLs with a scheme (`mailto:`) and root-relative paths are no longer checked as files, and a link title (`[a](b.md "Title")`) is no longer read as part of the path.
+- `broken_internal_link` no longer reports code as links, reads parentheses in link paths, and generates heading anchors the way GitHub does. Links in fenced and inline code (`fns[i](arg)`) were checked as links, and a `# comment` line in a fenced block counted as a heading. A link path was cut at the first `)`, so `[a](file(1).md)` checked `file(1`; parentheses now nest, and `\(` and `<...>` targets work too. Heading anchors collapsed runs of spaces and dropped `_` and non-ASCII letters, so "Research & Testing" gave `research-testing` where GitHub gives `research--testing`; they now follow GitHub's rule, add `-1`, `-2` to repeated headings, drop closing `#`s, link syntax and `_` emphasis, and accept percent-encoded anchors.
 - Restored the Cursor and Kiro discovery and transformation APIs used by consumer installers. A prior core sync removed these exports while AgentSys continued calling them.
 
 ### Tests
 
 - Added regression coverage for the shared Cursor/Kiro API surface, command discovery mappings, and Kiro agent JSON generation.
 - A root `package.json` with `"test": "node --test"`, so the shared Node CI runs the repo's own `*.test.js` files. Before, CI printed "No test script defined" and ran none of them. CI runs them on Node 18, 22, 24 and 26.
-- `lib/enhance/docs-analyzer.test.js` covers relative links from a single file, from a nested file in a directory run, and from a relative doc path.
+- `lib/enhance/docs-analyzer.test.js` covers relative links from a single file, from a nested file in a directory run, and from a relative doc path. It also covers links in fenced, inline and CRLF code, parentheses in link paths, and GitHub heading anchors.
 
 ## [0.4.5] - 2026-04-26
 
