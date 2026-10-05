@@ -15,6 +15,12 @@
  * its entry is removed, so an entry is for a deliberate local difference,
  * not for a fix that belongs in agent-core.
  *
+ * Every sync job validates the whole file, not only its own consumer's
+ * entry. A bad entry anywhere fails all jobs, including a repo key that is
+ * not in the matrix of .github/workflows/sync.yml: a typo there would
+ * otherwise print no rules and let the sync overwrite the files the entry
+ * meant to keep.
+ *
  * Usage:
  *   node scripts/sync-exclude.js --repo <consumer> [--source <agent-core root>] [--config <file>]
  */
@@ -22,6 +28,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 
+const WORKFLOW = path.join('.github', 'workflows', 'sync.yml');
 const REPO_NAME = /^[a-z0-9][a-z0-9._-]*$/;
 // Plain relative file paths only: no globs, backslashes, empty or dot segments.
 const UNSAFE_PATH = /[*?[\]\\]|\/\/|(^|\/)\.{1,2}(\/|$)/;
@@ -31,19 +38,45 @@ function fail(message) {
 }
 
 /**
- * Check the parsed config and that every listed path is a file under
- * sourceRoot (agent-core's checkout). Throws on the first problem.
+ * The consumer repos the sync workflow runs for: the inline `repo: [a, b]`
+ * list of the job matrix in <sourceRoot>/.github/workflows/sync.yml.
+ *
+ * @param {string} sourceRoot
+ * @returns {string[]}
+ */
+function readMatrix(sourceRoot) {
+  const workflowPath = path.join(sourceRoot, WORKFLOW);
+  let text;
+  try {
+    text = fs.readFileSync(workflowPath, 'utf8');
+  } catch (err) {
+    fail(`cannot read ${workflowPath}: ${err.message}`);
+  }
+  const match = text.match(/^\s*repo:\s*\[([^\]]*)\]/m);
+  const repos = match ? match[1].split(',').map(s => s.trim()).filter(Boolean) : [];
+  if (repos.length === 0) fail(`no inline matrix repo list (repo: [a, b]) in ${workflowPath}`);
+  return repos;
+}
+
+/**
+ * Check the parsed config, that every key is a repo in the sync matrix and
+ * that every listed path is a file under sourceRoot (agent-core's checkout).
+ * Throws on the first problem.
  *
  * @param {unknown} config
  * @param {string} sourceRoot
+ * @param {string[]} matrix consumer repos the sync workflow runs for
  * @returns {Record<string, Array<{reason: string, paths: string[]}>>}
  */
-function validateConfig(config, sourceRoot) {
+function validateConfig(config, sourceRoot, matrix) {
   if (!config || typeof config !== 'object' || Array.isArray(config)) {
     fail('top level must be an object keyed by consumer repo name');
   }
   for (const [repo, groups] of Object.entries(config)) {
     if (!REPO_NAME.test(repo)) fail(`invalid repo name ${JSON.stringify(repo)}`);
+    if (!matrix.includes(repo)) {
+      fail(`${repo} is not in the sync matrix of ${WORKFLOW} (${matrix.join(', ')}); fix the repo name`);
+    }
     if (!Array.isArray(groups) || groups.length === 0) {
       fail(`${repo}: expected a non-empty array of { reason, paths } groups`);
     }
@@ -72,7 +105,8 @@ function validateConfig(config, sourceRoot) {
 }
 
 /**
- * Read and validate the config file.
+ * Read and validate the config file against the sync matrix and lib/ of
+ * sourceRoot.
  *
  * @param {string} configPath
  * @param {string} sourceRoot
@@ -84,7 +118,7 @@ function loadConfig(configPath, sourceRoot) {
   } catch (err) {
     fail(`cannot read ${configPath}: ${err.message}`);
   }
-  return validateConfig(parsed, sourceRoot);
+  return validateConfig(parsed, sourceRoot, readMatrix(sourceRoot));
 }
 
 /**
@@ -130,4 +164,4 @@ if (require.main === module) {
   }
 }
 
-module.exports = { validateConfig, loadConfig, rulesFor };
+module.exports = { readMatrix, validateConfig, loadConfig, rulesFor };

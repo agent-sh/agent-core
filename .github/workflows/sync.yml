@@ -34,8 +34,11 @@ jobs:
           REPO_NAME: ${{ matrix.repo }}
         run: |
           # Files this consumer keeps on purpose, listed with the reason in
-          # sync-exclude.json. The script fails on a malformed entry or a path
-          # agent-core does not have, which fails this consumer's sync.
+          # sync-exclude.json. Every job validates the whole file, so a
+          # malformed entry, a path agent-core does not have or a repo that is
+          # not in this matrix fails all jobs, not only that consumer's. A
+          # change that deletes or renames a listed lib file must update the
+          # list in the same PR.
           node source/scripts/sync-exclude.js --repo "$REPO_NAME" --source source > "$RUNNER_TEMP/sync-exclude.rules"
           cat "$RUNNER_TEMP/sync-exclude.rules"
 

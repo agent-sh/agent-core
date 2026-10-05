@@ -34,7 +34,7 @@ A consumer can keep its own copy of a synced `lib/` file. List it in `sync-exclu
 }
 ```
 
-The sync then leaves that file as the consumer has it. It also stops sending agent-core's later changes to that file there, so use it for a deliberate local difference; a fix every consumer should get belongs in agent-core's `lib/`. `scripts/sync-exclude.js` checks the file (paths must be files that exist under agent-core's `lib/`) and fails the consumer's sync job on a bad entry.
+The sync then leaves that file as the consumer has it. It also stops sending agent-core's later changes to that file there, so use it for a deliberate local difference; a fix every consumer should get belongs in agent-core's `lib/`. `scripts/sync-exclude.js` checks the file (repo names must be in the sync matrix of `.github/workflows/sync.yml`, paths must be files that exist under agent-core's `lib/`). Every sync job checks the whole file, so one bad entry fails all of them, not only that consumer's. A change that deletes or renames a listed `lib/` file has to update the list in the same PR.
 
 ## AGENTS.md generation
 

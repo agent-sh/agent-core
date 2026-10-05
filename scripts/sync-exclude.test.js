@@ -7,7 +7,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
-const { validateConfig, loadConfig, rulesFor } = require('./sync-exclude');
+const { readMatrix, validateConfig, loadConfig, rulesFor } = require('./sync-exclude');
 
 const ROOT = path.join(__dirname, '..');
 const SCRIPT = path.join(__dirname, 'sync-exclude.js');
@@ -22,10 +22,10 @@ function read(file) {
   return fs.readFileSync(file, 'utf8');
 }
 
-function syncMatrix() {
-  const match = read(WORKFLOW).match(/^\s*repo:\s*\[([^\]]*)\]/m);
-  assert.ok(match, 'sync.yml has a matrix repo list');
-  return match[1].split(',').map(s => s.trim()).filter(Boolean);
+// A scratch agent-core root's sync.yml, with only the matrix the script reads.
+function writeWorkflow(root, repos) {
+  write(path.join(root, '.github', 'workflows', 'sync.yml'),
+    `jobs:\n  sync:\n    strategy:\n      matrix:\n        repo: [${repos.join(', ')}]\n`);
 }
 
 // The rsync filter arguments of the "Sync lib" step, in order.
@@ -47,7 +47,8 @@ function workflowRsyncFilters() {
 describe('sync-exclude.json', () => {
   it('is valid against this checkout and names only repos the sync matrix covers', () => {
     const config = loadConfig(path.join(ROOT, 'sync-exclude.json'), ROOT);
-    const matrix = syncMatrix();
+    const matrix = readMatrix(ROOT);
+    assert.ok(matrix.length > 0);
     for (const repo of Object.keys(config)) {
       assert.ok(matrix.includes(repo), `${repo} is in sync-exclude.json but not in the sync matrix`);
     }
@@ -79,7 +80,31 @@ describe('rulesFor', () => {
   });
 });
 
+describe('readMatrix', () => {
+  let root;
+
+  beforeEach(() => {
+    root = fs.mkdtempSync(path.join(os.tmpdir(), 'sync-exclude-matrix-'));
+  });
+
+  afterEach(() => {
+    fs.rmSync(root, { recursive: true, force: true });
+  });
+
+  it('reads the inline repo list of the job matrix', () => {
+    writeWorkflow(root, ['deslop', 'ship', 'repo-intel']);
+    assert.deepEqual(readMatrix(root), ['deslop', 'ship', 'repo-intel']);
+  });
+
+  it('fails when sync.yml is missing or has no inline repo list', () => {
+    assert.throws(() => readMatrix(root), /cannot read .*sync\.yml/);
+    write(path.join(root, '.github', 'workflows', 'sync.yml'), 'jobs:\n  sync:\n    strategy:\n      matrix:\n        repo:\n          - deslop\n');
+    assert.throws(() => readMatrix(root), /no inline matrix repo list/);
+  });
+});
+
 describe('validateConfig', () => {
+  const MATRIX = ['deslop', 'ship'];
   let root;
 
   beforeEach(() => {
@@ -95,29 +120,35 @@ describe('validateConfig', () => {
   const group = paths => [{ reason: 'kept on purpose', paths }];
 
   it('accepts a file under lib/', () => {
-    assert.doesNotThrow(() => validateConfig({ deslop: group(['lib/perf/benchmark-runner.js']) }, root));
+    assert.doesNotThrow(() => validateConfig({ deslop: group(['lib/perf/benchmark-runner.js']) }, root, MATRIX));
   });
 
   it('rejects a path agent-core does not have, or a directory', () => {
-    assert.throws(() => validateConfig({ deslop: group(['lib/perf/missing.js']) }, root), /not a file in agent-core/);
-    assert.throws(() => validateConfig({ deslop: group(['lib/utils']) }, root), /not a file in agent-core/);
+    assert.throws(() => validateConfig({ deslop: group(['lib/perf/missing.js']) }, root, MATRIX), /not a file in agent-core/);
+    assert.throws(() => validateConfig({ deslop: group(['lib/utils']) }, root, MATRIX), /not a file in agent-core/);
+  });
+
+  it('rejects a repo key that is not in the sync matrix', () => {
+    assert.throws(() => validateConfig({ deslpo: group(['lib/perf/benchmark-runner.js']) }, root, MATRIX),
+      /deslpo is not in the sync matrix.*deslop, ship.*fix the repo name/);
+    assert.doesNotThrow(() => validateConfig({ ship: group(['lib/perf/benchmark-runner.js']) }, root, MATRIX));
   });
 
   it('rejects paths outside lib/, globs and dot segments', () => {
     for (const p of ['AGENTS.md', 'lib/', 'lib/perf/', 'lib/perf/*.js', 'lib/perf/../utils/x.js',
       'lib/./perf/benchmark-runner.js', 'lib//perf/benchmark-runner.js', 'lib\\perf\\benchmark-runner.js', 7]) {
-      assert.throws(() => validateConfig({ deslop: group([p]) }, root), /plain file path under lib/, String(p));
+      assert.throws(() => validateConfig({ deslop: group([p]) }, root, MATRIX), /plain file path under lib/, String(p));
     }
   });
 
   it('rejects a missing reason, empty paths, bad shapes and bad repo names', () => {
-    assert.throws(() => validateConfig({ deslop: [{ reason: ' ', paths: ['lib/perf/benchmark-runner.js'] }] }, root), /needs a reason/);
-    assert.throws(() => validateConfig({ deslop: [{ reason: 'x', paths: [] }] }, root), /non-empty paths/);
-    assert.throws(() => validateConfig({ deslop: [] }, root), /non-empty array/);
-    assert.throws(() => validateConfig({ deslop: ['lib/perf/benchmark-runner.js'] }, root), /must be an object/);
-    assert.throws(() => validateConfig([], root), /top level/);
-    assert.throws(() => validateConfig(JSON.parse('{"__proto__": []}'), root), /invalid repo name/);
-    assert.throws(() => validateConfig({ 'Agent Core': group(['lib/perf/benchmark-runner.js']) }, root), /invalid repo name/);
+    assert.throws(() => validateConfig({ deslop: [{ reason: ' ', paths: ['lib/perf/benchmark-runner.js'] }] }, root, MATRIX), /needs a reason/);
+    assert.throws(() => validateConfig({ deslop: [{ reason: 'x', paths: [] }] }, root, MATRIX), /non-empty paths/);
+    assert.throws(() => validateConfig({ deslop: [] }, root, MATRIX), /non-empty array/);
+    assert.throws(() => validateConfig({ deslop: ['lib/perf/benchmark-runner.js'] }, root, MATRIX), /must be an object/);
+    assert.throws(() => validateConfig([], root, MATRIX), /top level/);
+    assert.throws(() => validateConfig(JSON.parse('{"__proto__": []}'), root, MATRIX), /invalid repo name/);
+    assert.throws(() => validateConfig({ 'Agent Core': group(['lib/perf/benchmark-runner.js']) }, root, MATRIX), /invalid repo name/);
   });
 });
 
@@ -126,6 +157,7 @@ describe('sync-exclude CLI', () => {
 
   beforeEach(() => {
     root = fs.mkdtempSync(path.join(os.tmpdir(), 'sync-exclude-cli-'));
+    writeWorkflow(root, ['deslop', 'ship']);
     write(path.join(root, 'lib', 'perf', 'benchmark-runner.js'), 'core\n');
     write(path.join(root, 'sync-exclude.json'), JSON.stringify({
       deslop: [{ reason: 'kept', paths: ['lib/perf/benchmark-runner.js'] }],
@@ -155,6 +187,17 @@ describe('sync-exclude CLI', () => {
     const bad = run('--repo', 'deslop', '--source', root);
     assert.equal(bad.status, 1);
     assert.match(bad.stderr, /lib\/gone\.js is not a file in agent-core/);
+  });
+
+  it('exits 1 for every consumer when a key is not in the sync matrix', () => {
+    write(path.join(root, 'sync-exclude.json'), JSON.stringify({
+      deslpo: [{ reason: 'typo', paths: ['lib/perf/benchmark-runner.js'] }],
+    }));
+    for (const repo of ['deslop', 'ship']) {
+      const bad = run('--repo', repo, '--source', root);
+      assert.equal(bad.status, 1, repo);
+      assert.match(bad.stderr, /deslpo is not in the sync matrix/);
+    }
   });
 });
 
