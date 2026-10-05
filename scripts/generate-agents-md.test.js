@@ -120,7 +120,7 @@ describe('generate-agents-md', () => {
     assert.match(output, /- discover-tasks/);
     assert.match(output, /## Commands/);
     assert.match(output, /- next-task/);
-    assert.match(output, /## Overview/);
+    assert.match(output, /This repo is an \[agentsys\]/);
     assert.match(output, /## Conventions/);
     assert.match(output, /## Dev commands/);
   });
@@ -135,6 +135,12 @@ describe('generate-agents-md', () => {
     assert.doesNotMatch(output, /npm run validate/);
     assert.doesNotMatch(output, /GPU/);
     assert.doesNotMatch(output, /\*\*[^*]+\*\*/);
+
+    // agnix PE-001/CC-MEM-008 flag critical keywords 40-60% down the file.
+    // The shortest output (no components) is the worst case.
+    const lines = output.split('\n');
+    const idx = lines.findIndex(line => line.includes('[CRITICAL]'));
+    assert.ok(idx >= 0 && idx / lines.length < 0.4, `[CRITICAL] at ${idx}/${lines.length}`);
   });
 
   it('generates AGENTS.md with only commands (ship shape)', () => {

@@ -2,9 +2,24 @@
 
 > {{description}}
 
-## Overview
-
 This repo is an [agentsys](https://github.com/agent-sh/agentsys) plugin: Markdown prompts in `commands/`, `agents/` and `skills/` (skills follow https://agentskills.io), backed by Node.js code. The files under `lib/` that [agent-core](https://github.com/agent-sh/agent-core) ships are synced from there, so change shared code in agent-core: a local edit is overwritten by the next sync PR.
+
+## Conventions
+
+- Output is plain text with the status markers `[OK]`, `[ERROR]`, `[WARN]`, `[CRITICAL]`, and no emojis or ASCII art. People read it in terminals and other plugins parse it.
+- In prose, write a spaced single dash (` - `), not ` -- `.
+- Put summaries, plans and audit notes in the PR or issue, not in committed files: committed notes go stale.
+- Changes reach main through a PR. A feature or fix is done when tests that cover it pass.
+- Keep git hooks on, so the checks they run are not skipped.
+- When a script or tool fails, report the failure before working around it, so the tool gets fixed.
+- When goals conflict, rank them: plugin users' experience, automation that needs no babysitting, token cost, output quality, simplicity.
+
+## Dev commands
+
+```bash
+npm test   # test suite, when package.json defines one
+agnix .    # agent config lint
+```
 
 {{#agents}}
 ## Agents
@@ -24,19 +39,3 @@ This repo is an [agentsys](https://github.com/agent-sh/agentsys) plugin: Markdow
 {{items}}
 
 {{/commands}}
-## Conventions
-
-- Output is plain text with the status markers `[OK]`, `[ERROR]`, `[WARN]`, `[CRITICAL]`, and no emojis or ASCII art. People read it in terminals and other plugins parse it.
-- In prose, write a spaced single dash (` - `), not ` -- `.
-- Put summaries, plans and audit notes in the PR or issue, not in committed files: committed notes go stale.
-- Changes reach main through a PR. A feature or fix is done when tests that cover it pass.
-- Keep git hooks on, so the checks they run are not skipped.
-- When a script or tool fails, report the failure before working around it, so the tool gets fixed.
-- When goals conflict, rank them: plugin users' experience, automation that needs no babysitting, token cost, output quality, simplicity.
-
-## Dev commands
-
-```bash
-npm test   # test suite
-agnix .    # agent config lint, also run in CI
-```
