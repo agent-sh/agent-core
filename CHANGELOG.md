@@ -9,6 +9,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ### Changed
 
 - `templates/AGENTS.md.tmpl` follows the current-model style the consumer repos moved to: a "This repo is" paragraph that says what the plugin is and which `lib/` files the sync owns, plain Conventions with the reason for each rule, and Dev commands every consumer can run (`npm test` where defined, `agnix .`). The agent, skill and command lists move to the end, so the `[CRITICAL]` marker stays out of agnix's lost-in-the-middle zone in short files. It drops the bold Critical Rules list, the generic model table, the GPU validation text that does not apply to these CPU-only plugins, and `npm run validate`, which 6 of the 13 synced consumers do not define. Placeholders, conditional sections and the managed markers are unchanged. Generated output passes agnix with no rules disabled.
+- `planShimSpawn` passes `/v:off` to cmd.exe. A user whose cmd.exe enables delayed expansion by default (the `DelayedExpansion` registry value) got `!NAME!` in a batch-shim argument replaced by the value of `NAME`. The plan is now `/d /v:off /s /c`. deslop and repo-intel already carried this fix locally (deslop#73, repo-intel#33), so the core sync was reverting it there. `lib/utils/command-parser.test.js` pins the plan and runs the delayed-expansion check on Windows, with a control that shows the substitution when `/v:off` is missing.
 
 ### Fixed
 
